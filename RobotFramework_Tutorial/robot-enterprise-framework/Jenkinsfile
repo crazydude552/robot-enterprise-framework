@@ -1,0 +1,68 @@
+pipeline {
+    agent any
+
+    parameters {
+        choice(
+            name: 'SELECTED_ENV',
+            choices: [
+                'config/env_iso_sit.py',
+                'config/env_iso_uat.py',
+                'config/env_iso_dev.py',
+                'config/env_fin_sit.py',
+                'config/env_fin_uat.py'
+            ],
+            description: 'Select Variable File for Target Environment'
+        )
+        choice(
+            name: 'TARGET_SUITE',
+            choices: [
+                'suites/suite_iso20022_camt053.robot',
+                'suites/suite_pacs008_fin.robot',
+                'suites/suite_iso20022_pacs002.robot',
+                'suites/'
+            ],
+            description: 'Select Target Test Suite or All Suites'
+        )
+        string(name: 'TEST_NAME', defaultValue: '', description: 'Optional: Specific test case name (Leave empty for all in suite)')
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Setup Dependencies') {
+            steps {
+                bat '''
+                    python -m venv venv
+                    call venv\\Scripts\\activate.bat
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                '''
+            }
+        }
+
+        stage('Execute Test Suite') {
+            steps {
+                script {
+                    def testFilter = params.TEST_NAME ? "--test \"${params.TEST_NAME}\"" : ""
+                    bat """
+                        call venv\\Scripts\\activate.bat
+                        robot --variablefile ${params.SELECTED_ENV} ^
+                              ${testFilter} ^
+                              --outputdir results ^
+                              ${params.TARGET_SUITE}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            robot outputDir: 'results', passThreshold: 100.0, unstableThreshold: 80.0, onlyCritical: true
+        }
+    }
+}

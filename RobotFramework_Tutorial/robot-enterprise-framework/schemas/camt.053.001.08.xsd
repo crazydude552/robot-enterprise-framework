@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08"
+           xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08"
+           elementFormDefault="qualified">
+    <xs:element name="Document" type="Document"/>
+    <xs:complexType name="Document">
+        <xs:sequence>
+            <xs:element name="BkToCstmrStmt" type="BkToCstmrStmt"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="BkToCstmrStmt">
+        <xs:sequence>
+            <xs:element name="GrpHdr" type="GrpHdr"/>
+            <xs:element name="Stmt" type="Stmt"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="GrpHdr">
+        <xs:sequence>
+            <xs:element name="MsgId" type="xs:string"/>
+            <xs:element name="CreDtTm" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="Stmt">
+        <xs:sequence>
+            <xs:element name="Id" type="xs:string"/>
+            <xs:element name="StmtPgntn" type="StmtPgntn"/>
+            <xs:element name="Acct" type="Acct"/>
+            <xs:element name="Bal" type="Bal" maxOccurs="unbounded"/>
+            <xs:element name="Ntry" type="Ntry" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="StmtPgntn">
+        <xs:sequence>
+            <xs:element name="PgNb" type="xs:string"/>
+            <xs:element name="LastPgInd" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="Acct">
+        <xs:sequence>
+            <xs:element name="Id" type="AcctId"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="AcctId">
+        <xs:sequence>
+            <xs:element name="IBAN" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="Bal">
+        <xs:sequence>
+            <xs:element name="Tp" type="BalTp"/>
+            <xs:element name="Amt" type="AmtType"/>
+            <xs:element name="CdtDbtInd" type="xs:string"/>
+            <xs:element name="Dt" type="Dt"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="BalTp">
+        <xs:sequence>
+            <xs:element name="CdOrPrtry" type="CdOrPrtry"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="CdOrPrtry">
+        <xs:sequence>
+            <xs:element name="Cd" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="AmtType">
+        <xs:simpleContent>
+            <xs:extension base="xs:string">
+                <xs:attribute name="Ccy" type="xs:string" use="required"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+    <xs:complexType name="Dt">
+        <xs:sequence>
+            <xs:element name="Dt" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="Ntry">
+        <xs:sequence>
+            <xs:element name="Amt" type="AmtType"/>
+            <xs:element name="CdtDbtInd" type="xs:string"/>
+            <xs:element name="Sts" type="xs:string"/>
+            <xs:element name="NtryDtls" type="NtryDtls"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="NtryDtls">
+        <xs:sequence>
+            <xs:element name="TxDtls" type="TxDtls"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="TxDtls">
+        <xs:sequence>
+            <xs:element name="Refs" type="Refs"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="Refs">
+        <xs:sequence>
+            <xs:element name="EndToEndId" type="xs:string"/>
+            <xs:element name="UETR" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+</xs:schema>

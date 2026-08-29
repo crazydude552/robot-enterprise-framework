@@ -1,0 +1,17 @@
+# Core Test Automation Framework
+robotframework==7.0
+
+# Parallel Test Execution
+robotframework-pabot==3.0.0
+
+# Excel Data Loading & Processing
+openpyxl==3.1.2
+
+# HTTP API Requests Handling
+requests==2.31.0
+
+# High-Performance XML & XSD Schema Validation (Updated version)
+lxml>=5.3.0
+
+# Formatting & String Utilities
+typing-extensions==4.10.0

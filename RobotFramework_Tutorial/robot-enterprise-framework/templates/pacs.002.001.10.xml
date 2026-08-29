@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.002.001.10">
+    <PmtStsRpt>
+        <GrpHdr>
+            <MsgId>${MsgId}</MsgId>
+            <CreDtTm>${CreDtTm}</CreDtTm>
+        </GrpHdr>
+        <OrgnlGrpInfAndSts>
+            <OrgnlMsgId>${OrgnlMsgId}</OrgnlMsgId>
+            <OrgnlMsgNmId>${OrgnlMsgNmId}</OrgnlMsgNmId>
+            <GrpSts>${GrpSts}</GrpSts>
+        </OrgnlGrpInfAndSts>
+        <TxInfAndSts>
+            <OrgnlEndToEndId>${OrgnlEndToEndId}</OrgnlEndToEndId>
+            <OrgnlUETR>${OrgnlUETR}</OrgnlUETR>
+            <TxSts>${TxSts}</TxSts>
+            <StsRsnInf>
+                <Rsn>
+                    <Cd>${ReasonCode}</Cd>
+                </Rsn>
+                <AddtlInf>${AddtlInf}</AddtlInf>
+            </StsRsnInf>
+        </TxInfAndSts>
+    </PmtStsRpt>
+</Document>

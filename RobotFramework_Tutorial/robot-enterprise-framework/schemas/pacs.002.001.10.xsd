@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="urn:iso:std:iso:20022:tech:xsd:pacs.002.001.10"
+           xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.002.001.10"
+           elementFormDefault="qualified">
+    <xs:element name="Document" type="Document"/>
+    <xs:complexType name="Document">
+        <xs:sequence>
+            <xs:element name="PmtStsRpt" type="PmtStsRpt"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="PmtStsRpt">
+        <xs:sequence>
+            <xs:element name="GrpHdr" type="GrpHdr"/>
+            <xs:element name="OrgnlGrpInfAndSts" type="OrgnlGrpInfAndSts"/>
+            <xs:element name="TxInfAndSts" type="TxInfAndSts"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="GrpHdr">
+        <xs:sequence>
+            <xs:element name="MsgId" type="xs:string"/>
+            <xs:element name="CreDtTm" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="OrgnlGrpInfAndSts">
+        <xs:sequence>
+            <xs:element name="OrgnlMsgId" type="xs:string"/>
+            <xs:element name="OrgnlMsgNmId" type="xs:string"/>
+            <xs:element name="GrpSts" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="TxInfAndSts">
+        <xs:sequence>
+            <xs:element name="OrgnlEndToEndId" type="xs:string"/>
+            <xs:element name="OrgnlUETR" type="xs:string"/>
+            <xs:element name="TxSts" type="xs:string"/>
+            <xs:element name="StsRsnInf" type="StsRsnInf" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="StsRsnInf">
+        <xs:sequence>
+            <xs:element name="Rsn" type="Rsn" minOccurs="0"/>
+            <xs:element name="AddtlInf" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="Rsn">
+        <xs:sequence>
+            <xs:element name="Cd" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+</xs:schema>
