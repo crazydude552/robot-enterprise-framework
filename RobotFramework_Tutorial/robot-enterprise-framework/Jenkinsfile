@@ -14,21 +14,23 @@ pipeline {
         }
 
         stage('Build & Push Docker Images') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
-                    // Use 'sh' instead of 'bat' and '$DH_USER' instead of '%DH_USER%'
-                    sh 'echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin'
+    steps {
+        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
+            // Step into the subfolder where Dockerfile and Dockerfile.rf reside
+            dir('RobotFramework_Tutorial/robot-enterprise-framework') {
+                sh 'echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin'
 
-                    // Build and Push FastAPI Application Image
-                    sh 'docker build -t ${DOCKER_USER}/fastapi-app:latest .'
-                    sh 'docker push ${DOCKER_USER}/fastapi-app:latest'
+                // Build and Push FastAPI Application Image
+                sh 'docker build -t ${DOCKER_USER}/fastapi-app:latest .'
+                sh 'docker push ${DOCKER_USER}/fastapi-app:latest'
 
-                    // Build and Push Robot Framework Runner Image
-                    sh 'docker build -f Dockerfile.rf -t ${DOCKER_USER}/rf-runner:latest .'
-                    sh 'docker push ${DOCKER_USER}/rf-runner:latest'
-                }
+                // Build and Push Robot Framework Runner Image
+                sh 'docker build -f Dockerfile.rf -t ${DOCKER_USER}/rf-runner:latest .'
+                sh 'docker push ${DOCKER_USER}/rf-runner:latest'
             }
         }
+    }
+}
 
         stage('Deploy FastAPI to OpenShift') {
             steps {
