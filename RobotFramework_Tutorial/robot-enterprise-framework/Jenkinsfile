@@ -2,30 +2,30 @@ pipeline {
     agent any
 
     environment {
-        // UPDATE THESE TWO VALUES
-        DOCKER_USER   = 'pvmrmoorthy'
-        OPENSHIFT_URL = 'https://api.rm3.7wse.p1.openshiftapps.com:6443'
+        DOCKER_USER   = 'pvmrmoorthy' // Your Docker Hub username
+        OPENSHIFT_URL = 'https://api.rm3.7wse.p1.openshiftapps.com:6443' // Your Sandbox API URL
     }
 
     stages {
         stage('Checkout Source Code') {
             steps {
-                git branch: 'master', url: 'https://github.com/crazydude552/robot-enterprise-framework.git'
+                git branch: 'main', url: 'https://github.com/crazydude552/robot-enterprise-framework.git'
             }
         }
 
         stage('Build & Push Docker Images') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
-                    bat "docker login -u %DH_USER% -p %DH_PASS%"
+                    // Use 'sh' instead of 'bat' and '$DH_USER' instead of '%DH_USER%'
+                    sh 'echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin'
 
-                    // Build and Push FastAPI App
-                    bat "docker build -t %DOCKER_USER%/fastapi-app:latest ."
-                    bat "docker push %DOCKER_USER%/fastapi-app:latest"
+                    // Build and Push FastAPI Application Image
+                    sh 'docker build -t ${DOCKER_USER}/fastapi-app:latest .'
+                    sh 'docker push ${DOCKER_USER}/fastapi-app:latest'
 
-                    // Build and Push Robot Framework Runner
-                    bat "docker build -f Dockerfile.rf -t %DOCKER_USER%/rf-runner:latest ."
-                    bat "docker push %DOCKER_USER%/rf-runner:latest"
+                    // Build and Push Robot Framework Runner Image
+                    sh 'docker build -f Dockerfile.rf -t ${DOCKER_USER}/rf-runner:latest .'
+                    sh 'docker push ${DOCKER_USER}/rf-runner:latest'
                 }
             }
         }
@@ -34,12 +34,12 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'openshift-token', variable: 'OS_TOKEN')]) {
                     // Login to OpenShift Sandbox
-                    bat "oc login --token=%OS_TOKEN% --server=${OPENSHIFT_URL}"
+                    sh 'oc login --token="${OS_TOKEN}" --server="${OPENSHIFT_URL}"'
 
-                    // Deploy App & Expose Port 8000
-                    bat "oc create deployment fastapi-app --image=%DOCKER_USER%/fastapi-app:latest --dry-run=client -o yaml | oc apply -f -"
-                    bat "oc expose deployment fastapi-app --port=8000 --target-port=8000 --name=fastapi-service --dry-run=client -o yaml | oc apply -f -"
-                    bat "oc rollout restart deployment/fastapi-app"
+                    // Deploy App and Service
+                    sh 'oc create deployment fastapi-app --image=${DOCKER_USER}/fastapi-app:latest --dry-run=client -o yaml | oc apply -f -'
+                    sh 'oc expose deployment fastapi-app --port=8000 --target-port=8000 --name=fastapi-service --dry-run=client -o yaml | oc apply -f -'
+                    sh 'oc rollout restart deployment/fastapi-app'
                 }
             }
         }
@@ -47,13 +47,13 @@ pipeline {
         stage('Execute Robot Framework Tests') {
             steps {
                 withCredentials([string(credentialsId: 'openshift-token', variable: 'OS_TOKEN')]) {
-                    // Re-run test job on OpenShift
-                    bat "oc delete job rf-test-job --ignore-not-found=true"
-                    bat "oc create job rf-test-job --image=%DOCKER_USER%/rf-runner:latest"
+                    // Run Robot Framework Test Job
+                    sh 'oc delete job rf-test-job --ignore-not-found=true'
+                    sh 'oc create job rf-test-job --image=${DOCKER_USER}/rf-runner:latest'
 
-                    // Wait for execution and stream logs
-                    bat "oc wait --for=condition=complete job/rf-test-job --timeout=120s"
-                    bat "oc logs job/rf-test-job"
+                    // Stream live logs
+                    sh 'oc wait --for=condition=complete job/rf-test-job --timeout=120s'
+                    sh 'oc logs job/rf-test-job'
                 }
             }
         }
