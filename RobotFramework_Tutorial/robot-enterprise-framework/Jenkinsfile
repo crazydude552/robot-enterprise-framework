@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Checkout Source Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/crazydude552/robot-enterprise-framework.git'
+                git branch: 'master', url: 'https://github.com/crazydude552/robot-enterprise-framework.git'
             }
         }
 
