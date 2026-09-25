@@ -20,7 +20,7 @@ pipeline {
                 sh '''
                     echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
 
-                    # Force clean build without using cached layers
+                    # Force a clean build without cache so pandas is installed
                     docker build --no-cache -t pvmrmoorthy/fastapi-app:latest .
                     docker push pvmrmoorthy/fastapi-app:latest
 
@@ -43,7 +43,7 @@ pipeline {
                 oc expose deployment/fastapi-app --port=8000 --dry-run=client -o yaml | oc apply -f -
                 oc create route edge fastapi-app --service=fastapi-app --dry-run=client -o yaml | oc apply -f -
 
-                # Force OpenShift to deploy the newly pushed container image
+                # Force deployment to replace crashing pods with the newly pushed image
                 oc rollout restart deployment/fastapi-app
                 oc rollout status deployment/fastapi-app --timeout=120s
             '''
