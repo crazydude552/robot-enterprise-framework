@@ -15,18 +15,18 @@ pipeline {
 
         stage('Build & Push Docker Images') {
     steps {
-        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
-            // Step into the subfolder where Dockerfile and Dockerfile.rf reside
-            dir('RobotFramework_Tutorial/robot-enterprise-framework') {
-                sh 'echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin'
+        dir('RobotFramework_Tutorial/robot-enterprise-framework') {
+            withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
+                sh '''
+                    echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
 
-                // Build and Push FastAPI Application Image
-                sh 'docker build -t ${DOCKER_USER}/fastapi-app:latest .'
-                sh 'docker push ${DOCKER_USER}/fastapi-app:latest'
+                    # Force clean build without using cached layers
+                    docker build --no-cache -t pvmrmoorthy/fastapi-app:latest .
+                    docker push pvmrmoorthy/fastapi-app:latest
 
-                // Build and Push Robot Framework Runner Image
-                sh 'docker build -f Dockerfile.rf -t ${DOCKER_USER}/rf-runner:latest .'
-                sh 'docker push ${DOCKER_USER}/rf-runner:latest'
+                    docker build --no-cache -f Dockerfile.rf -t pvmrmoorthy/rf-runner:latest .
+                    docker push pvmrmoorthy/rf-runner:latest
+                '''
             }
         }
     }
@@ -37,16 +37,15 @@ pipeline {
         withCredentials([string(credentialsId: 'openshift-token', variable: 'OS_TOKEN')]) {
             sh '''
                 oc login --token=${OS_TOKEN} --server=https://api.rm3.7wse.p1.openshiftapps.com:6443
-
-                # Switch to your assigned Developer Sandbox project
                 oc project pvmrmoorthy-dev
 
-                # Create or update deployment
                 oc create deployment fastapi-app --image=pvmrmoorthy/fastapi-app:latest --dry-run=client -o yaml | oc apply -f -
-
-                # Expose deployment as a service and route (if not already done)
                 oc expose deployment/fastapi-app --port=8000 --dry-run=client -o yaml | oc apply -f -
                 oc create route edge fastapi-app --service=fastapi-app --dry-run=client -o yaml | oc apply -f -
+
+                # Force OpenShift to deploy the newly pushed container image
+                oc rollout restart deployment/fastapi-app
+                oc rollout status deployment/fastapi-app --timeout=120s
             '''
         }
     }
