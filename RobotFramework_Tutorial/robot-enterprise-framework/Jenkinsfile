@@ -33,18 +33,24 @@ pipeline {
 }
 
         stage('Deploy FastAPI to OpenShift') {
-            steps {
-                withCredentials([string(credentialsId: 'openshift-token', variable: 'OS_TOKEN')]) {
-                    // Login to OpenShift Sandbox
-                    sh 'oc login --token="${OS_TOKEN}" --server="${OPENSHIFT_URL}"'
+    steps {
+        withCredentials([string(credentialsId: 'openshift-token', variable: 'OS_TOKEN')]) {
+            sh '''
+                oc login --token=${OS_TOKEN} --server=https://api.rm3.7wse.p1.openshiftapps.com:6443
 
-                    // Deploy App and Service
-                    sh 'oc create deployment fastapi-app --image=${DOCKER_USER}/fastapi-app:latest --dry-run=client -o yaml | oc apply -f -'
-                    sh 'oc expose deployment fastapi-app --port=8000 --target-port=8000 --name=fastapi-service --dry-run=client -o yaml | oc apply -f -'
-                    sh 'oc rollout restart deployment/fastapi-app'
-                }
-            }
+                # Switch to your assigned Developer Sandbox project
+                oc project pvmrmoorthy-dev
+
+                # Create or update deployment
+                oc create deployment fastapi-app --image=pvmrmoorthy/fastapi-app:latest --dry-run=client -o yaml | oc apply -f -
+
+                # Expose deployment as a service and route (if not already done)
+                oc expose deployment/fastapi-app --port=8000 --dry-run=client -o yaml | oc apply -f -
+                oc create route edge fastapi-app --service=fastapi-app --dry-run=client -o yaml | oc apply -f -
+            '''
         }
+    }
+}
 
         stage('Execute Robot Framework Tests') {
             steps {
