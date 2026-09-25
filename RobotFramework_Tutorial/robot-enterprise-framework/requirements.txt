@@ -15,3 +15,25 @@ lxml>=5.3.0
 
 # Formatting & String Utilities
 typing-extensions==4.10.0
+
+# API Testing Libraries
+robotframework-requests>=0.9.7
+
+# Json/Data Validation Helper Libraries
+robotframework-jsonlibrary>=0.5
+
+# Optional Web UI Automation (if testing frontend pages)
+robotframework-seleniumlibrary>=6.2.0
+robotframework-browser>=18.0.0
+
+# Web Framework & Server
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+
+# Data Validation & Settings
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+
+# Optional Async Support / Utilities
+httpx>=0.27.0
+python-multipart>=0.0.9
