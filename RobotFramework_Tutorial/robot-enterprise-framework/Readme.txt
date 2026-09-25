@@ -24,3 +24,40 @@
 ├── main.py                      # FastAPI mock payment server simulating ISO 20022 endpoints
 ├── README.md                    # Project documentation & execution guide
 └── requirements.txt             # Python dependencies (Robot Framework, FastAPI, lxml, pandas, etc.)
+
+
+To run the API
+uvicorn main:app --reload --port 8000
+
+To Run the tests
+robot --pythonpath . --variablefile config/env_local.py --outputdir results .\suites\
+
+Then you can see
+(.venv) PS C:\Users\pvmrm\Documents\workspace\RobotFramework_Tutorial\robot-enterprise-framework> robot --pythonpath . --variablefile config/env_local.py --outputdir results .\suites\
+==============================================================================
+Suites
+==============================================================================
+Suites.Suite Iso20022 Camt053 :: Suite 3: ISO 20022 Bank Statement (camt.05...
+==============================================================================
+TC_CAMT053_01: Validate Statement Balances and Booked Entries :: F... | PASS |
+------------------------------------------------------------------------------
+Suites.Suite Iso20022 Camt053 :: Suite 3: ISO 20022 Bank Statement... | PASS |
+1 test, 1 passed, 0 failed
+==============================================================================
+Suites.Suite Iso20022 Pacs002 :: Suite 2: ISO 20022 Status Report (pacs.002...
+==============================================================================
+TC_PAC002_01: Process ISO Status Report "TC_PAC002_01" :: Executes... | PASS |
+------------------------------------------------------------------------------
+Suites.Suite Iso20022 Pacs002 :: Suite 2: ISO 20022 Status Report ... | PASS |
+1 test, 1 passed, 0 failed
+==============================================================================
+Suites.Suite Pacs008 Fin :: Suite 1: SWIFT FIN pacs.008 Processing Suite
+==============================================================================
+TC_PAC008_01: Execute FIN pacs.008 Transfer for "TC_PAC008_01" :: ... | PASS |
+------------------------------------------------------------------------------
+Suites.Suite Pacs008 Fin :: Suite 1: SWIFT FIN pacs.008 Processing... | PASS |
+1 test, 1 passed, 0 failed
+==============================================================================
+Suites                                                                | PASS |
+3 tests, 3 passed, 0 failed
+==============================================================================
