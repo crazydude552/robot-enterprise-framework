@@ -37,3 +37,5 @@ pydantic-settings>=2.2.0
 # Optional Async Support / Utilities
 httpx>=0.27.0
 python-multipart>=0.0.9
+
+pandas
