@@ -1,68 +1,61 @@
 pipeline {
     agent any
 
-    parameters {
-        choice(
-            name: 'SELECTED_ENV',
-            choices: [
-                'config/env_iso_sit.py',
-                'config/env_iso_uat.py',
-                'config/env_iso_dev.py',
-                'config/env_fin_sit.py',
-                'config/env_fin_uat.py'
-            ],
-            description: 'Select Variable File for Target Environment'
-        )
-        choice(
-            name: 'TARGET_SUITE',
-            choices: [
-                'suites/suite_iso20022_camt053.robot',
-                'suites/suite_pacs008_fin.robot',
-                'suites/suite_iso20022_pacs002.robot',
-                'suites/'
-            ],
-            description: 'Select Target Test Suite or All Suites'
-        )
-        string(name: 'TEST_NAME', defaultValue: '', description: 'Optional: Specific test case name (Leave empty for all in suite)')
+    environment {
+        // UPDATE THESE TWO VALUES
+        DOCKER_USER   = 'pvmrmoorthy'
+        OPENSHIFT_URL = 'https://api.rm3.7wse.p1.openshiftapps.com:6443'
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Checkout Source Code') {
             steps {
-                checkout scm
+                git branch: 'master', url: 'https://github.com/crazydude552/robot-enterprise-framework.git'
             }
         }
 
-        stage('Setup Dependencies') {
+        stage('Build & Push Docker Images') {
             steps {
-                bat '''
-                    python -m venv venv
-                    call venv\\Scripts\\activate.bat
-                    pip install --upgrade pip
-                    pip install -r requirements.txt
-                '''
-            }
-        }
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
+                    bat "docker login -u %DH_USER% -p %DH_PASS%"
 
-        stage('Execute Test Suite') {
-            steps {
-                script {
-                    def testFilter = params.TEST_NAME ? "--test \"${params.TEST_NAME}\"" : ""
-                    bat """
-                        call venv\\Scripts\\activate.bat
-                        robot --variablefile ${params.SELECTED_ENV} ^
-                              ${testFilter} ^
-                              --outputdir results ^
-                              ${params.TARGET_SUITE}
-                    """
+                    // Build and Push FastAPI App
+                    bat "docker build -t %DOCKER_USER%/fastapi-app:latest ."
+                    bat "docker push %DOCKER_USER%/fastapi-app:latest"
+
+                    // Build and Push Robot Framework Runner
+                    bat "docker build -f Dockerfile.rf -t %DOCKER_USER%/rf-runner:latest ."
+                    bat "docker push %DOCKER_USER%/rf-runner:latest"
                 }
             }
         }
-    }
 
-    post {
-        always {
-            robot outputDir: 'results', passThreshold: 100.0, unstableThreshold: 80.0, onlyCritical: true
+        stage('Deploy FastAPI to OpenShift') {
+            steps {
+                withCredentials([string(credentialsId: 'openshift-token', variable: 'OS_TOKEN')]) {
+                    // Login to OpenShift Sandbox
+                    bat "oc login --token=%OS_TOKEN% --server=${OPENSHIFT_URL}"
+
+                    // Deploy App & Expose Port 8000
+                    bat "oc create deployment fastapi-app --image=%DOCKER_USER%/fastapi-app:latest --dry-run=client -o yaml | oc apply -f -"
+                    bat "oc expose deployment fastapi-app --port=8000 --target-port=8000 --name=fastapi-service --dry-run=client -o yaml | oc apply -f -"
+                    bat "oc rollout restart deployment/fastapi-app"
+                }
+            }
+        }
+
+        stage('Execute Robot Framework Tests') {
+            steps {
+                withCredentials([string(credentialsId: 'openshift-token', variable: 'OS_TOKEN')]) {
+                    // Re-run test job on OpenShift
+                    bat "oc delete job rf-test-job --ignore-not-found=true"
+                    bat "oc create job rf-test-job --image=%DOCKER_USER%/rf-runner:latest"
+
+                    // Wait for execution and stream logs
+                    bat "oc wait --for=condition=complete job/rf-test-job --timeout=120s"
+                    bat "oc logs job/rf-test-job"
+                }
+            }
         }
     }
 }
