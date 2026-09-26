@@ -1,6 +1,17 @@
 FROM python:3.11-slim
+
 WORKDIR /app
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
 COPY . .
-CMD ["robot", "--pythonpath", ".", "--variablefile", "config/env_openshift.py", "--outputdir", "results", "./suites/"]
+
+# --- OPENSHIFT PERMISSION FIX ---
+# Pre-create /app/results and grant read/write permissions to Group 0 (OpenShift's group)
+RUN mkdir -p /app/results && \
+    chgrp -R 0 /app && \
+    chmod -R g+rwX /app
+
+# Command to execute Robot Framework tests
+CMD ["robot", "--outputdir", "/app/results", "."]
