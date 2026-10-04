@@ -1,10 +1,10 @@
-//Testing
 pipeline {
     agent any
 
     environment {
-        DOCKER_USER   = 'pvmrmoorthy' // Your Docker Hub username
-        OPENSHIFT_URL = 'https://api.rm3.7wse.p1.openshiftapps.com:6443' // Your Sandbox API URL
+        DOCKER_USER   = 'pvmrmoorthy'
+        OPENSHIFT_URL = 'https://api.rm3.7wse.p1.openshiftapps.com:6443'
+        OS_PROJECT    = 'pvmrmoorthy-dev'
     }
 
     stages {
@@ -15,77 +15,84 @@ pipeline {
         }
 
         stage('Build & Push Docker Images') {
-    steps {
-        dir('RobotFramework_Tutorial/robot-enterprise-framework') {
-            withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
-                sh '''
-                    echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
+            steps {
+                dir('RobotFramework_Tutorial/robot-enterprise-framework') {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
+                        sh '''
+                            echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
 
-                    # Force a clean build without cache so pandas is installed
-                    docker build --no-cache -t pvmrmoorthy/fastapi-app:latest .
-                    docker push pvmrmoorthy/fastapi-app:latest
+                            # Build and push FastAPI app image
+                            docker build --no-cache -t ${DOCKER_USER}/fastapi-app:latest .
+                            docker push ${DOCKER_USER}/fastapi-app:latest
 
-                    docker build --no-cache -f Dockerfile.rf -t pvmrmoorthy/rf-runner:latest .
-                    docker push pvmrmoorthy/rf-runner:latest
-                '''
+                            # Build and push Robot Framework runner image
+                            docker build --no-cache -f Dockerfile.rf -t ${DOCKER_USER}/rf-runner:latest .
+                            docker push ${DOCKER_USER}/rf-runner:latest
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Deploy FastAPI to OpenShift') {
+            steps {
+                withCredentials([string(credentialsId: 'openshift-token', variable: 'OS_TOKEN')]) {
+                    sh '''
+                        oc login --token=${OS_TOKEN} --server=${OPENSHIFT_URL}
+                        oc project ${OS_PROJECT}
+
+                        oc create deployment fastapi-app --image=${DOCKER_USER}/fastapi-app:latest --dry-run=client -o yaml | oc apply -f -
+                        oc expose deployment/fastapi-app --port=8000 --dry-run=client -o yaml | oc apply -f -
+                        oc create route edge fastapi-app --service=fastapi-app --dry-run=client -o yaml | oc apply -f -
+
+                        # Force deployment update
+                        oc rollout restart deployment/fastapi-app
+                        oc rollout status deployment/fastapi-app --timeout=120s
+                    '''
+                }
+            }
+        }
+
+        stage('Execute Robot Framework Tests') {
+            steps {
+                withCredentials([string(credentialsId: 'openshift-token', variable: 'OS_TOKEN')]) {
+                    sh '''
+                        oc login --token=${OS_TOKEN} --server=${OPENSHIFT_URL}
+                        oc project ${OS_PROJECT}
+
+                        oc delete job rf-test-job --ignore-not-found=true
+
+                        # Create job to execute test suite
+                        oc create job rf-test-job --image=${DOCKER_USER}/rf-runner:latest -- \
+                            robot --pythonpath . --variablefile config/env_local.py --outputdir /app/results suites/
+
+                        echo "Waiting for Robot Framework tests to finish..."
+                        oc wait --for=condition=complete job/rf-test-job --timeout=180s || true
+                    '''
+                }
             }
         }
     }
-}
 
-        stage('Deploy FastAPI to OpenShift') {
-    steps {
-        withCredentials([string(credentialsId: 'openshift-token', variable: 'OS_TOKEN')]) {
-            sh '''
-                oc login --token=${OS_TOKEN} --server=https://api.rm3.7wse.p1.openshiftapps.com:6443
-                oc project pvmrmoorthy-dev
-
-                oc create deployment fastapi-app --image=pvmrmoorthy/fastapi-app:latest --dry-run=client -o yaml | oc apply -f -
-                oc expose deployment/fastapi-app --port=8000 --dry-run=client -o yaml | oc apply -f -
-                oc create route edge fastapi-app --service=fastapi-app --dry-run=client -o yaml | oc apply -f -
-
-                # Force deployment to replace crashing pods with the newly pushed image
-                oc rollout restart deployment/fastapi-app
-                oc rollout status deployment/fastapi-app --timeout=120s
-            '''
-        }
-    }
-}
-
-        stage('Execute Robot Framework Tests') {
-    steps {
-        withCredentials([string(credentialsId: 'oc-token', variable: 'OS_TOKEN')]) {
-            sh '''
-                oc delete job rf-test-job --ignore-not-found=true
-
-                # 1. Create job using your specific Robot Framework command
-                # Note: Linux paths use forward slashes (/) instead of backslashes (\\)
-                oc create job rf-test-job --image=pvmrmoorthy/rf-runner:latest -- \
-                    robot --pythonpath . --variablefile config/env_local.py --outputdir /app/results suites/
-
-                # 2. Wait for the test job to complete or fail
-                echo "Waiting for Robot Framework tests to finish..."
-                oc wait --for=condition=complete job/rf-test-job --timeout=180s || true
-            '''
-        }
-    }
     post {
         always {
-           sh '''
-            mkdir -p ${WORKSPACE}/results
+            withCredentials([string(credentialsId: 'openshift-token', variable: 'OS_TOKEN')]) {
+                sh '''
+                    mkdir -p ${WORKSPACE}/results
 
-            POD_NAME=$(oc get pods -l job-name=rf-test-job -n pvmrmoorthy-dev --sort-by='.metadata.creationTimestamp' -o jsonpath='{.items[-1].metadata.name}')
+                    oc login --token=${OS_TOKEN} --server=${OPENSHIFT_URL} > /dev/null 2>&1
+                    POD_NAME=$(oc get pods -l job-name=rf-test-job -n ${OS_PROJECT} --sort-by='.metadata.creationTimestamp' -o jsonpath='{.items[-1].metadata.name}')
 
-            if [ -n "$POD_NAME" ]; then
-                echo "Fetching logs from $POD_NAME..."
-                # Print logs directly to Jenkins console
-                oc logs $POD_NAME -n pvmrmoorthy-dev --tail=200 || true
-            else
-                    echo "No pod found for rf-test-job"
-            fi
-            '''
+                    if [ -n "$POD_NAME" ]; then
+                        echo "Fetching logs from $POD_NAME..."
+                        oc logs $POD_NAME -n ${OS_PROJECT} --tail=200 || true
+                    else
+                        echo "No pod found for rf-test-job"
+                    fi
+                '''
+            }
 
-            // 3. Publish reports on the Jenkins build page
+            // Publish reports on Jenkins build page
             robot(
                 outputPath: 'results',
                 outputFileName: 'output.xml',
@@ -95,7 +102,5 @@ pipeline {
                 unstableThreshold: 80.0
             )
         }
-    }
-}
     }
 }
